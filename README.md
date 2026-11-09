@@ -1,3 +1,11 @@
+# AniMPV
+
+Самостоятельные дополнения к mpv для просмотра аниме: собственная панель, внешние дорожки, порядок серий и история просмотра. Первый этап реализации находится в [`animpv/`](animpv/README.md). На Windows запускайте `animpv/Start-AniMPV.cmd`; движок предоставляется отдельно в `animpv/bin/`.
+
+Код mpv ниже остаётся основой проекта. Происхождение новых дополнений и зависимости описаны в [`animpv/ORIGIN.md`](animpv/ORIGIN.md).
+
+---
+
 ![mpv logo](https://raw.githubusercontent.com/mpv-player/mpv.io/master/source/images/mpv-logo-128.png)
 
 # mpv

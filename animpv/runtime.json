@@ -1,0 +1,10 @@
+{
+  "platform": "windows-x86_64",
+  "mpv_version": "v0.42.0-11-g8bc468896",
+  "source": "https://github.com/shinchiro/mpv-winbuild-cmake/releases/tag/20261109",
+  "archive": "mpv-x86_64-20261109-git-8bc468896e.7z",
+  "url": "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20261109/mpv-x86_64-20261109-git-8bc468896e.7z",
+  "archive_sha256": "7e9588d62c5b830ac2413a3a475b5588e445406e0466dd6333477e631237ec4a",
+  "mpv_exe_sha256": "ec653e7b902fea224721ba1139bc7d6e03a79dc69b8b97b52eb7534825346c03",
+  "notes": "Local standalone runtime in ignored bin/. No reference-build scripts, configuration or installer bundled. Not compiled from the fork in this checkout."
+}

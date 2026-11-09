@@ -1,3 +1,14 @@
 /subprojects/*
 !/subprojects/packagefiles
 !/subprojects/*.wrap
+
+# Generated AniMPV state, local engines and verification artifacts.
+/animpv/bin/
+/animpv/mpv.exe
+/animpv/state/*
+!/animpv/state/.gitkeep
+/animpv/screenshots/*
+!/animpv/screenshots/.gitkeep
+/animpv/tests/.artifacts/
+/animpv/tests/__pycache__/
+/animpv/tests/*.log
