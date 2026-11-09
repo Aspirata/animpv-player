@@ -18,7 +18,7 @@ function module(name)
     return value
 end
 mp.add_timeout(0, function()
-    for _, name in ipairs({'test_rules', 'test_history', 'test_library', 'test_ui'}) do
+    for _, name in ipairs({'test_rules', 'test_history', 'test_library', 'test_ui', 'test_preview'}) do
         local path = utils.join_path(here, name .. '.lua')
         if utils.file_info(path) then
             local ok, err = pcall(dofile, path)

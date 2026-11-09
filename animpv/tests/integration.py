@@ -16,7 +16,7 @@ CONFIG = Path(__file__).resolve().parents[1]
 
 
 class Player:
-    def __init__(self, binary, state, files=(), visible=False, baseline=False):
+    def __init__(self, binary, state, files=(), visible=False, baseline=False, extra=()):
         self.root = Path(state)
         self.address = (rf"\\.\pipe\animpv-test-{os.getpid()}-{time.monotonic_ns()}"
                         if os.name == "nt" else str(self.root / "ipc.sock"))
@@ -30,7 +30,7 @@ class Player:
                 f"--script-opts=animpv-state_dir={state},animpv-ui={'yes' if visible else 'no'}"]
         if not visible:
             args += ["--vo=null", "--ao=null", "--force-window=no"]
-        self.process = subprocess.Popen(args + [str(f) for f in files], stdout=self.log,
+        self.process = subprocess.Popen(args + list(extra) + [str(f) for f in files], stdout=self.log,
                                         stderr=subprocess.STDOUT)
         self.pipe = None
         deadline = time.monotonic() + 8

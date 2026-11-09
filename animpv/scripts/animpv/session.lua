@@ -12,7 +12,7 @@ local function is_local(path) return path and not path:match('^%a[%w+.-]*://') e
 function M.new(library, history, options)
     local self = {model={ready=true, path='', title='AniMPV', position=0, duration=0,
         pause=true, volume=100, tracks={}, playlist={}, chapters={}, menu='', scan_pending=false,
-        status='', resume_position=0, candidates={}}, generation=0, preferences={}, last_save=-math.huge}
+        status='', resume_position=0, candidates={}}, generation=0, preferences={}, owned_tracks={}, last_save=-math.huge}
     local m = self.model
     local function publish()
         mp.set_property_native('user-data/animpv', {ready=true, path=m.path, menu=m.menu,
@@ -20,6 +20,7 @@ function M.new(library, history, options)
             tracks=#m.tracks, ambiguous=m.ambiguous or 0, index_seconds=m.index_seconds or 0,
             index_reads=library.reads, ui=m.ui})
     end
+    self.publish=publish
     function self:changed(major)
         if major then publish() end
         if self.ui then self.ui:invalidate() end
@@ -127,6 +128,12 @@ function M.new(library, history, options)
             if generation ~= self.generation or absolute(mp.get_property('path')) ~= expected then return end
             auto_playlist(result, expected)
             local attach = track_candidates(result, expected)
+            local allowed={}
+            for _,field in ipairs({'audio','subtitles'}) do
+                for _,path in ipairs(result[field]) do
+                    if rules.match(expected,path) then allowed[path]=true end
+                end
+            end
             local function next_track(index)
                 if generation ~= self.generation or absolute(mp.get_property('path')) ~= expected then return end
                 local item = attach[index]
@@ -136,11 +143,24 @@ function M.new(library, history, options)
                         if absolute(t['external-filename']) == item.path then found = true; break end
                     end
                     if not found then
+                        self.owned_tracks[item.path]=true
                         local ok, err = pcall(mp.commandv, item.kind .. '-add', item.path, 'auto')
                         if not ok then m.status = 'Ошибка дорожки: ' .. tostring(err) end
                     end
                     mp.add_timeout(0, function() next_track(index+1) end)
                 else
+                    -- A core file replacement can race a synchronous *-add already sent.
+                    -- Reconcile only AniMPV-owned tracks after the latest discovery finishes.
+                    local retained={}
+                    for _,track in ipairs(mp.get_property_native('track-list',{})) do
+                        local path=absolute(track['external-filename'])
+                        if path and self.owned_tracks[path] then
+                            if not allowed[path] and (track.type=='audio' or track.type=='sub') then
+                                mp.commandv(track.type..'-remove',track.id)
+                            else retained[path]=true end
+                        end
+                    end
+                    self.owned_tracks=retained
                     self:sync_tracks(); self:apply_preferences()
                     m.scan_pending = false; m.index_seconds = mp.get_time()-started
                     if result.incomplete then m.status = result.reason .. ' · F5: повторить'
@@ -270,7 +290,8 @@ function M.new(library, history, options)
         self:changed(false)
     end)
     for property, field in pairs({pause='pause', volume='volume', mute='mute', duration='duration',
-        playlist='playlist', ['chapter-list']='chapters', ['track-list']='tracks'}) do
+        playlist='playlist', ['chapter-list']='chapters', ['track-list']='tracks',
+        ['demuxer-cache-state']='cache_state'}) do
         mp.observe_property(property, 'native', function(_, value)
             if property == 'track-list' then self:sync_tracks()
             else if value ~= nil then m[field]=value end; self:changed(property ~= 'volume') end

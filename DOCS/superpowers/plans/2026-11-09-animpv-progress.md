@@ -16,3 +16,8 @@
 - Final review scope rulings: broad real-release naming, crash/power-loss durability, Linux/macOS and hardware/HDR/multimonitor compatibility remain unverified and documented; independent authorship is stated as provenance, not as an external guarantee. IPC/media and rendered/input checks supplied evidence the reviewer did not personally collect.
 - Final tests: 22/22 Lua tests on mpv 0.39 and 0.42; six real-media IPC groups; rendered menu/panel, modal isolation, keyboard release and resized pointer checks. See animpv/VERIFICATION.md for evidence and reproducible commands.
 - Integration decision: keep codex/animpv-foundation locally; no merge, push or publication requested.
+
+## Compact interface and previews extension
+
+- User explicitly requested a smaller interface, icon controls, improved timeline and hover previews. Completed under `2026-11-09-compact-ui-previews.md`, preserving the original Lua/ASS stack and untouched native core.
+- Final extension evidence: 28 Lua tests, 6 media IPC groups, rendered/input checks, and 6 preview/input groups pass on both validated engines. Independent review's 3 findings reproduced, fixed and re-reviewed. See updated `animpv/VERIFICATION.md`; the earlier 22-test count and measurements above describe the original foundation commit.

@@ -43,7 +43,8 @@ try:
     was_paused = player.get('pause')
     w, h = player.get('osd-width'), player.get('osd-height')
     scale = max(0.8, min(2, h / 720))
-    player.command('mouse', round(w * 0.29), round(h - 66 * scale))
+    g=player.get('user-data/animpv')['ui']['geometry']
+    player.command('mouse',round(g['left']+104*scale),round(g['bottom']-29*scale))
     time.sleep(0.15)
     player.command('keypress', 'MBTN_LEFT')
     player.wait(lambda: player.get('user-data/animpv').get('menu') == '', 'outside click closes modal')
@@ -51,10 +52,11 @@ try:
     for geometry in ['1100x700', '480x320']:
         player.command('set_property', 'geometry', geometry)
         player.wait(lambda: abs(player.get('osd-width') - int(geometry.split('x')[0])) < 5, 'resize window')
-        time.sleep(0.2)
+        player.wait(lambda: abs(player.get('user-data/animpv')['ui'].get('physical_width',0)-int(geometry.split('x')[0]))<5,'panel resize')
         w, h = player.get('osd-width'), player.get('osd-height')
         scale = max(0.8, min(2, h / 720))
-        player.command('mouse', round(w/2), round(h-100*scale))
+        g=player.get('user-data/animpv')['ui']['geometry']
+        player.command('mouse',round((g['seek_left']+g['seek_right'])/2),round(g['seek_y']))
         time.sleep(0.15)
         player.command('keypress', 'MBTN_LEFT')
         player.wait(lambda: abs(player.get('time-pos') - 15) < 0.3, 'mouse seek after resize')
