@@ -31,8 +31,22 @@ local function clean(text)
     text = text:gsub('%b[]', ' '):gsub('%b()', ' ')
     return (text:gsub('[%s%p_]+', ' '):gsub('^%s+', ''):gsub('%s+$', ''))
 end
+local function episode_title(text)
+    local function strip_metadata(block)
+        local lower=M.lower(block)
+        if lower:match('%d%d%d+p') or lower:match('%d+%s*x%s*%d+')
+            or lower:match('^%[%x%x%x%x%x%x%x%x%]$') then return '' end
+        for _,tag in ipairs({'bdrip','bluray','web%-dl','webrip','x264','x265','h%.264','h%.265','hevc','flac','aac'}) do
+            if lower:find('%f[%w]'..tag..'%f[%W]') then return '' end
+        end
+        return block
+    end
+    return (text:gsub('%b[]',strip_metadata):gsub('%b()',strip_metadata)
+        :gsub('^[%s%-%._:]+',''):gsub('%s+$',''))
+end
 function M.episode(path)
-    local text = M.lower(M.stem(path))
+    local source=M.stem(path)
+    local text = M.lower(source)
     for _, special in ipairs({'op', 'ed', 'ncop', 'nced', 'pv', 'trailer'}) do
         if text:find('%f[%a]' .. special .. '%f[%A]') then return nil end
     end
@@ -42,10 +56,10 @@ function M.episode(path)
         first, last, number = text:find('%[%s*(%d%d?%d?)%s*%]')
         if not first then first, last, number = text:find('%-%s*(%d%d?%d?)%f[%D]') end
         if not first then
-            local stripped = text:gsub('%b[]', ''):gsub('%b()', '')
+            source=source:gsub('%b[]', ''):gsub('%b()', '')
                 :gsub('[._]([%a]+)$', ''):gsub('%s+$', '')
-            first, last, number = stripped:find('(%d+)%s*$')
-            text = stripped
+            text=M.lower(source)
+            first, last, number = text:find('(%d+)%s*$')
         end
         season = '1'
     end
@@ -53,7 +67,22 @@ function M.episode(path)
     if not first or not number or number < 1 or number > 999 or not season then return nil end
     -- A partial match must not turn 1080 or 2024 into episode 108/202.
     if text:sub(last + 1, last + 1):match('%d') then return nil end
-    return {season = season, number = number, series = clean(text:sub(1, first - 1))}
+    return {season = season, number = number, series = clean(text:sub(1, first - 1)),
+        title=episode_title(source:sub(last+1))}
+end
+function M.playlist_label(path,title)
+    local episode=M.episode(path)
+    if not episode then return title or M.basename(path) end
+    local caption=episode.title
+    if type(title)=='string' and title~='' and title~=M.basename(path) and title~=M.stem(path) then
+        local titled=M.episode(M.kind(title)=='video' and title or title..'.mkv')
+        if titled and titled.number==episode.number and titled.season==episode.season then
+            if titled.title~='' then caption=titled.title end
+        else caption=title end
+    end
+    local prefix=episode.season==1 and string.format('Серия %02d',episode.number)
+        or string.format('S%02dE%02d',episode.season,episode.number)
+    return prefix..(caption~='' and ' · '..caption or '')
 end
 function M.natural_less(a, b)
     local x, y = M.lower(a), M.lower(b)
@@ -133,5 +162,9 @@ function M.time(seconds)
         return string.format('%d:%02d:%02d', math.floor(seconds / 3600), math.floor(seconds / 60) % 60, seconds % 60)
     end
     return string.format('%02d:%02d', math.floor(seconds / 60), seconds % 60)
+end
+function M.chapter_title(chapter,index)
+    local title=type(chapter.title)=='string' and chapter.title:match('^%s*(.-)%s*$') or ''
+    return title~='' and title~='(unnamed)' and title or ('Глава '..index)
 end
 return M

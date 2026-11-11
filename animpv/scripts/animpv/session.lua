@@ -2,6 +2,17 @@ local mp = require 'mp'
 local utils = require 'mp.utils'
 local rules = require 'rules'
 local M = {}
+function M.main_items(candidates,resume_position)
+    local list={}
+    for _,item in ipairs({{'Аудиодорожки','audio'},{'Субтитры','sub'},{'Серии / плейлист','playlist'},
+        {'Главы','chapters'},{'История','history'}}) do
+        list[#list+1]={label=item[1],action='menu',args={item[2]}}
+    end
+    if #candidates>0 then list[#list+1]={label='Варианты файлов',action='menu',args={'found'}} end
+    list[#list+1]={label='Продолжить с '..rules.time(resume_position),action='resume'}
+    list[#list+1]={label='Клавиши',action='menu',args={'help'}}
+    return list
+end
 local function absolute(path)
     if not path or path == '' then return nil end
     if path:match('^%a[%w+.-]*://') then return path end
@@ -164,7 +175,7 @@ function M.new(library, history, options)
                     self:sync_tracks(); self:apply_preferences()
                     m.scan_pending = false; m.index_seconds = mp.get_time()-started
                     if result.incomplete then m.status = result.reason .. ' · F5: повторить'
-                    elseif #m.candidates > 0 then m.status = 'Есть неоднозначные совпадения · меню «Найденное»'
+                    elseif #m.candidates > 0 then m.status = 'Есть неоднозначные совпадения · меню «Варианты файлов»'
                     elseif m.status == 'Поиск дорожек…' then m.status = '' end
                     self:changed(true)
                 end
@@ -176,6 +187,7 @@ function M.new(library, history, options)
         self.generation = self.generation + 1; library:cancel()
         m.path = absolute(mp.get_property('path')) or ''
         m.title = rules.basename(m.path); m.position=0; m.duration=0; m.tracks={}
+        m.chapters={}
         m.scan_pending=true; m.resume_position=0; m.status=''; m.candidates={}; m.ambiguous=0
         if self.ui then self.ui:close() end
         self:changed(true)
@@ -184,6 +196,7 @@ function M.new(library, history, options)
         m.path = absolute(mp.get_property('path')) or ''
         m.title = mp.get_property('media-title', rules.basename(m.path))
         m.duration = mp.get_property_number('duration', 0)
+        m.chapters = mp.get_property_native('chapter-list', {})
         local old = history:get(m.path)
         m.resume_position = old and old.position or 0
         local dir = directory(m.path)
@@ -209,12 +222,12 @@ function M.new(library, history, options)
             end
         elseif kind == 'playlist' then
             for i, item in ipairs(m.playlist) do
-                list[#list+1] = {label=item.title or rules.basename(item.filename), selected=item.current,
+                list[#list+1] = {label=rules.playlist_label(item.filename,item.title), selected=item.current,
                     action='playlist-at', args={i-1}}
             end
         elseif kind == 'chapters' then
             for i, item in ipairs(m.chapters) do
-                list[#list+1] = {label=rules.time(item.time) .. '  ' .. (item.title or ('Глава ' .. i)),
+                list[#list+1] = {label=rules.time(item.time) .. '  ' .. rules.chapter_title(item,i),
                     action='seek-time', args={item.time}}
             end
         elseif kind == 'history' then
@@ -229,12 +242,7 @@ function M.new(library, history, options)
         elseif kind == 'help' then
             for _, text in ipairs(options.help or {}) do list[#list+1] = {label=text} end
         else
-            for _, item in ipairs({{'Аудиодорожки','audio'}, {'Субтитры','sub'}, {'Серии / плейлист','playlist'},
-                {'Главы','chapters'}, {'История','history'}, {'Найденное','found'}, {'Клавиши','help'}}) do
-                list[#list+1] = {label=item[1], action='menu', args={item[2]}}
-            end
-            list[#list+1] = {label='Продолжить с ' .. rules.time(m.resume_position), action='resume'}
-            list[#list+1] = {label='Обновить поиск дорожек', action='refresh'}
+            return M.main_items(m.candidates,m.resume_position)
         end
         return list
     end

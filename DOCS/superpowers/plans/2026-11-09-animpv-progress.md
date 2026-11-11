@@ -21,3 +21,11 @@
 
 - User explicitly requested a smaller interface, icon controls, improved timeline and hover previews. Completed under `2026-11-09-compact-ui-previews.md`, preserving the original Lua/ASS stack and untouched native core.
 - Final extension evidence: 28 Lua tests, 6 media IPC groups, rendered/input checks, and 6 preview/input groups pass on both validated engines. Independent review's 3 findings reproduced, fixed and re-reviewed. See updated `animpv/VERIFICATION.md`; the earlier 22-test count and measurements above describe the original foundation commit.
+
+## Usable baseline checkpoint — 2026-11-11
+
+- User explicitly requested committing the current usable base, with substantial GUI changes still expected. README records this provisional interface status.
+- Includes subsequent compact-menu polish, contextual file variants, episode-first playlist labels, chapter captions/full word-wrapped pending preview labels, Windows layout-aware letter keys, single-click pause/double-click fullscreen, and shared cursor/panel inactivity deadlines (2s paused, 1s playing).
+- Fresh final checks: 32 Lua tests on both available engines; all current media integration, visual/input, keyboard, preview and autohide scripts on mpv 0.42. All graphical test players use null audio output and mute. One supplied real release was also checked read-only earlier: 12 episodes, nested external voice and chapter markers.
+- Read-only independent checkpoint review found no critical/important regression. Keyboard seek/volume/mute/fullscreen visibility-trigger behavior is noted as a future interaction clarification in VERIFICATION.md. No native build, release publication, or GUI redesign is included in this checkpoint.
+- Existing unrelated untracked reference audit remains outside the program commit; engines, history, screenshots and test media remain ignored.

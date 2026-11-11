@@ -24,12 +24,13 @@ class Player:
         configuration = (["--no-config", "--load-scripts=no", "--osc=no", "--vo=gpu-next",
                           "--hwdec=auto-safe", "--sub-auto=no", "--audio-file-auto=no"]
                          if baseline else [f"--config-dir={CONFIG}"])
-        args = [binary, *configuration, "--idle=yes", "--pause=yes",
+        # Test players never send sound to the user's audio device, even if mute is toggled.
+        args = [binary, *configuration, "--idle=yes", "--pause=yes", "--mute=yes", "--ao=null",
                 "--terminal=yes", "--keep-open=yes", f"--input-ipc-server={self.address}",
                 f"--gpu-shader-cache-dir={state}/shader-cache",
                 f"--script-opts=animpv-state_dir={state},animpv-ui={'yes' if visible else 'no'}"]
         if not visible:
-            args += ["--vo=null", "--ao=null", "--force-window=no"]
+            args += ["--vo=null", "--force-window=no"]
         self.process = subprocess.Popen(args + list(extra) + [str(f) for f in files], stdout=self.log,
                                         stderr=subprocess.STDOUT)
         self.pipe = None
@@ -95,6 +96,12 @@ class Player:
 
     def action(self, name, *args):
         return self.command("script-message-to", "animpv", "action", name, *map(str, args))
+
+    def hotkey(self, name):
+        key = self.wait(lambda: next((item['key'] for item in self.get('input-bindings')
+                                      if item['cmd'].endswith('script-binding animpv/'+name)), None),
+                        f'current layout binding for {name}')
+        return self.command('keypress', key)
 
     def wait(self, predicate, description, timeout=8):
         deadline, last = time.monotonic() + timeout, None

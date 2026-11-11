@@ -53,7 +53,7 @@ try:
     assert hashlib.sha256(Path(frame['file']).read_bytes()).hexdigest()!=first_hash
     print('PASS demand decoding, exact BGRA size, temporal frame change and cached bucket')
     # A menu owns input and must remove both the image and pending preview work.
-    p.command('keypress','a')
+    p.hotkey('audio-menu')
     p.wait(lambda: not ui()['preview']['visible'] and not ui()['preview']['busy'],'menu clears preview')
     p.command('keypress','ESC')
     p.command('mouse',0,0)
@@ -85,10 +85,12 @@ try:
     print('PASS timeline drag, release and preview edge placement at both sizes')
     hover(0.3)
     p.command('set_property','pause',False)
-    time.sleep(3)
-    assert ui()['visible'] and ui()['preview']['visible'],'Stationary timeline hover should keep the panel visible'
+    p.wait(lambda: not ui()['visible'] and not ui()['preview']['visible'],
+           'stationary timeline hover expires with the playback deadline',timeout=2.8)
+    hover(0.31)
+    p.wait(lambda: ui()['visible'] and ui()['preview']['visible'],'movement brings preview back')
     p.command('set_property','pause',True)
-    print('PASS stationary hover remains visible during playback')
+    print('PASS stationary hover expires; movement brings the preview back')
     # Two colored halves expose pixel rotation as well as the declared aspect ratio.
     anamorphic=root/'anamorphic.mkv'
     subprocess.run(['ffmpeg','-v','error','-nostdin','-y','-f','lavfi','-i',
@@ -112,10 +114,49 @@ try:
     bottom=pixel(frame['width']//2,3*frame['height']//4)
     assert top[2]>top[0]+100 and bottom[0]>bottom[2]+100,(top,bottom)
     print('PASS anamorphic display aspect and clockwise pixel rotation')
+
+    chapter_file=root/'chapters.mkv'
+    metadata=root/'chapters.ffmeta'
+    long_title='Основная часть: ОченьДлинноеСловоБезПробеловИПереноса и описание времени события'
+    metadata.write_text(f''';FFMETADATA1
+[CHAPTER]
+TIMEBASE=1/1000
+START=0
+END=11500
+title=Вступление
+[CHAPTER]
+TIMEBASE=1/1000
+START=11500
+END=20000
+title={long_title}
+[CHAPTER]
+TIMEBASE=1/1000
+START=20000
+END=30000
+''',encoding='utf-8')
+    subprocess.run(['ffmpeg','-v','error','-nostdin','-y','-i',str(media/'Show S01E01.mkv'),
+        '-i',str(metadata),'-map','0','-map_chapters','1','-c','copy',str(chapter_file)],check=True)
+    p.command('set_property','video-rotate',0)
+    p.command('mouse',0,0)
+    p.command('loadfile',str(chapter_file),'replace'); p.ready()
+    p.wait(lambda: ui().get('chapter')=='Вступление','current chapter at playback position')
+    hover(0.39)
+    frame=p.wait(lambda: (v:=ui()['preview']).get('visible') and v,'chapter thumbnail')
+    boundary=p.get('chapter-list')[1]['time']
+    assert frame['time']>=boundary-0.001,('Thumbnail shows the previous chapter',frame,boundary,ui()['hover'])
+    assert ui()['hover']['chapter']==long_title
+    assert ui()['chapter']=='Вступление','Hover changed the current playback chapter'
+    p.command('screenshot-to-file',str(root/'timeline-chapter.png'),'window')
+    p.command('mouse',0,0)
+    p.action('seek-time',22)
+    p.wait(lambda: ui().get('chapter')=='Глава 3','untitled chapter gets a fallback name')
+    p.command('loadfile',str(media/'Show S01E01.mkv'),'replace'); p.ready()
+    p.wait(lambda: not ui().get('chapter'),'chapter title clears on a file without markers')
+    print('PASS current chapter, hover chapter, chapter boundary thumbnail and file switch')
 finally:
     p.close()
 assert not list(state.glob('preview-*.bgra')),'Preview cache should be cleaned on shutdown'
-p=Player(engine(args.mpv),state,[media/'Show S01E01.mkv'],visible=True,extra=[
+p=Player(engine(args.mpv),state,[chapter_file],visible=True,extra=[
     '--script-opts-append=animpv-ui_scale=2',
     f'--script-opts-append=animpv-preview_mpv={state}/missing-mpv.exe'])
 try:
@@ -123,7 +164,7 @@ try:
     p.wait(lambda: abs(p.get('osd-width')-320)<5,'small high-scale window')
     g=geometry(); scale=ui()['scale']
     assert scale>=1.5
-    p.command('mouse',round(g['left']+60*scale),round(g['bottom']-29*scale))
+    p.command('mouse',round(g['play_x']),round(g['controls_y']))
     time.sleep(0.15); p.command('keypress','MBTN_LEFT')
     p.wait(lambda: not p.get('pause'),'high-scale play icon activates playback')
     assert p.get('user-data/animpv')['menu']=='','High-scale controls activated an overlapping menu'
@@ -131,7 +172,13 @@ try:
     hover(0.4)
     p.wait(lambda: ui()['preview'].get('error') and not ui()['preview']['busy'],'missing decoder gracefully falls back')
     assert p.get('duration')>0 and not ui()['preview']['visible']
-    p.command('screenshot-to-file',str(root/'panel-high-scale.png'),'window')
+    assert ui()['hover']['chapter']==long_title
+    p.command('screenshot-to-file',str(root/'timeline-full-chapter.png'),'window')
+    p.command('set_property','geometry','1100x700')
+    p.wait(lambda: abs(p.get('osd-width')-1100)<5,'wide window for full chapter title')
+    hover(0.4)
+    p.wait(lambda: (ui().get('hover') or {}).get('chapter')==long_title,'full chapter title in wide window')
+    p.command('screenshot-to-file',str(root/'timeline-full-chapter-wide.png'),'window')
     print('PASS small high-scale controls and missing-decoder fallback')
 finally:
     p.close()

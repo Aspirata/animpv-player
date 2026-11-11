@@ -14,10 +14,10 @@ function M.dimensions(w,h,max_w,max_h)
     return math.max(1,math.floor(w*scale)),math.max(1,math.floor(h*scale))
 end
 function M.placement(x,anchor_y,w,h,window_w,window_h)
-    local fit=math.min(1,math.max(1,window_w-24)/w,math.max(1,window_h-42)/h)
+    local fit=math.min(1,math.max(1,window_w-16)/w,math.max(1,window_h-16)/h)
     w,h=math.floor(w*fit),math.floor(h*fit)
     return {x=math.max(8,math.min(window_w-w-8,math.floor(x-w/2))),
-        y=math.max(8,math.min(window_h-h-8,math.floor(anchor_y-h-36))),w=w,h=h}
+        y=math.max(8,math.min(window_h-h-8,math.floor(anchor_y-h))),w=w,h=h}
 end
 function M.eligible(path,duration,w,h)
     return type(path)=='string' and path~='' and not path:match('^%a[%w+.-]*://')
@@ -123,26 +123,32 @@ function M.new(options,changed)
         end)
         notify()
     end
-    function self:request(seconds,max_w,max_h)
+    function self:request(seconds,max_w,max_h,chapter_start)
         if not options.previews or not M.eligible(self.media,self.duration,self.source_w,self.source_h) then return end
         local dw,dh=M.display_dimensions({dw=self.source_w,dh=self.source_h,rotate=self.rotation})
         local w,h=M.dimensions(dw,dh,max_w,max_h)
-        local time=math.max(0,math.min(self.duration-0.05,math.floor(seconds/2)*2))
+        local bucket=math.floor(seconds/2)*2
+        local time=math.max(0,math.min(self.duration-0.05,math.max(bucket,chapter_start or 0)))
         local key=string.format('%.3f:%d:%d',time,w,h)
         if self.expiry then self.expiry:kill(); self.expiry=nil end
         if self.wanted and self.wanted.key==key then return end
         self.wanted={key=key,time=time,w=w,h=h}; self.frame=nil; self.visible=false
         mp.commandv('overlay-remove',42)
-        if self.cache[key] then self.frame=self.cache[key]; self.cache_hits=self.cache_hits+1; notify(); return end
-        if self.delay then self.delay:kill() end
-        self.delay=mp.add_timeout(options.preview_delay or 0.12,start)
+        if self.cache[key] then
+            if self.delay then self.delay:kill(); self.delay=nil end
+            self.frame=self.cache[key]; self.cache_hits=self.cache_hits+1; notify(); return
+        end
+        -- Update the queued position without postponing the next decode on every mouse move.
+        if not self.delay then self.delay=mp.add_timeout(options.preview_delay or 0.12,start) end
     end
     function self:show(x,y)
         if not self.frame then return end
         local f=self.frame
-        local ok=pcall(mp.command_native,{name='overlay-add',id=42,x=math.floor(x),y=math.floor(y),
-            file=f.file,offset=0,fmt='bgra',w=f.width,h=f.height,stride=f.width*4})
-        self.visible=ok; self.x,self.y=math.floor(x),math.floor(y)
+        x,y=math.floor(x),math.floor(y)
+        if self.visible and self.x==x and self.y==y then return end
+        local ok,result=pcall(mp.command_native,{name='overlay-add',id=42,x=x,y=y,
+            file=f.file,offset=0,fmt='bgra',w=f.width,h=f.height,stride=f.width*4},false)
+        self.visible=ok and result~=false; self.x,self.y=x,y
     end
     function self:stats()
         local f=self.frame or {}

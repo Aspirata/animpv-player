@@ -15,12 +15,13 @@ for name, range in pairs({max_depth={0,8}, max_files={10,20000}, max_dirs={1,100
     if name ~= 'ui_scale' and name ~= 'preview_delay' then o[name] = math.floor(o[name]) end
 end
 o.state_dir = mp.command_native({'expand-path', o.state_dir})
-o.help = {'Пробел — пауза', '← / → — перемотка на 5 секунд', 'PgUp / PgDn — предыдущая / следующая серия',
+o.help = {'Пробел / левый клик по видео — плей/пауза', '← / → — перемотка на 5 секунд', 'PgUp / PgDn — предыдущая / следующая серия',
     'A — аудиодорожки', 'J — субтитры', 'P — серии / плейлист', 'H — история',
-    'Ctrl+R — продолжить с сохранённой позиции', 'F5 — обновить поиск', 'F — полный экран',
+    'Ctrl+R — продолжить с сохранённой позиции', 'F5 — обновить поиск', 'F / двойной левый клик — полный экран',
     'M — выключить звук', 'V — видимость субтитров', 'Tab — показать панель',
-    'F1 — справка', 'Правый клик — меню', '↑ / ↓, Enter, Esc — навигация в меню'}
+    'F1 — справка', 'Кнопка меню / правый клик — меню', '↑ / ↓, Enter, Esc — навигация в меню'}
 local session = require('session').new(require('library').new(o), require('history').new(o.state_dir, o.history_limit), o)
 session.ui = require('ui').new(session, o)
+require('keyboard').bind(session)
 session:changed(true)
 mp.msg.info('AniMPV foundation ready')

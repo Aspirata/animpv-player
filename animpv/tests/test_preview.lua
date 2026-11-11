@@ -36,7 +36,7 @@ test('preview completion respects the newest hover deadline',function()
     local mp=require 'mp'
     local utils=require 'mp.utils'
     local saved={}
-    local clock,timers,workers=0,{},{}
+    local clock,timers,workers,requests=0,{},{},{}
     local function replace(t,key,value)
         saved[#saved+1]={t,key,t[key]}; t[key]=value
     end
@@ -48,7 +48,8 @@ test('preview completion respects the newest hover deadline',function()
     end)
     replace(mp,'commandv',function() end)
     replace(mp,'abort_async_command',function() end)
-    replace(mp,'command_native_async',function(_,fn)
+    replace(mp,'command_native_async',function(cmd,fn)
+        requests[#requests+1]=table.concat(cmd.args,' ')
         workers[#workers+1]=fn; return #workers
     end)
     replace(utils,'file_info',function() return {size=240*135*4} end)
@@ -62,7 +63,9 @@ test('preview completion respects the newest hover deadline',function()
     local ok,err=pcall(function()
         local p=module('preview').new({state_dir='.',preview_mpv='test-mpv',previews=true,preview_delay=0.12})
         p:set_media('test.mkv',30,1920,1080,1)
-        p:request(2,240,135); advance(0.12); equal(#workers,1)
+        p:request(2,240,135); advance(0.06); p:request(4,240,135)
+        advance(0.12); equal(#workers,1)
+        assert(requests[1]:find('--start=4.000',1,true),'Pending hover should decode the latest position')
         advance(0.2); p:request(8,240,135)
         advance(0.21); workers[1](true,{status=0})
         equal(#workers,1)
